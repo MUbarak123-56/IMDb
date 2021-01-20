@@ -13,7 +13,7 @@ library(tidyverse)
 
 ### Loading the file
 ```{r, load_file}
-df_imdb <- read.csv("~/IMDb/Movies.csv")
+df_imdb <- read.csv("~/IMDb/Movies.csv", encoding = "UTF-8")
 ```
 
 ### Checking out the loaded file
@@ -113,4 +113,74 @@ ggplot(df_imdb2) +
                                                                             "Rotten Tomatoes"="red"))+
   theme_bw()
 ```
+
+## The Director with the best ratings
+```{r}
+df_imdb3 <- df_imdb %>% 
+  select(Title, Directors, IMDb, Rotten.Tomatoes) %>% 
+  separate(Directors, into = c("Dir1", "Dir2", "Dir3"), sep = ",") %>% 
+  gather(Dir1:Dir3, key = "dir", value = "directors")
+  
+```
+
+### Checking out new dataset
+```{r, warning=FALSE}
+df_imdb4 <- df_imdb3 %>% 
+  filter(directors != "") %>% 
+  group_by(directors) %>% 
+  summarize(imdb = mean(IMDb, na.rm = TRUE), rotten = mean(Rotten.Tomatoes, na.rm = TRUE), count = n())
+nrow(df_imdb4)
+```
+
+
+```{r}
+df_imdb4 <- df_imdb4 %>% 
+  mutate(rank = rank(desc(count), ties.method = "first")) %>% 
+  arrange(rank)
+```
+
+```{r, fig.width = 12, fig.height = 8}
+df_imdb4 %>% 
+  filter(count >= 4) %>% 
+  mutate(new_rank = rank(desc(imdb))) %>% 
+  arrange(new_rank) %>% 
+  filter(new_rank <= 10) %>%
+  ggplot() +
+  geom_bar(aes(x = reorder(directors, -imdb), y = imdb), fill = "blue", stat = "identity") +
+  coord_cartesian(ylim = c(7, 10)) +
+  labs(x = "Directors", y = "IMDb ratings", title = "Top 10 IMDB ratings with directors who have directed more than
+       four movies") +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+```
+
+```{r, warning=FALSE}
+df_imdb5 <- df_imdb %>% 
+  separate(Genres, into = c("gen1", "gen2", "gen3", "gen4", "gen5","gen6", "gen7"), sep = ",") %>% 
+  gather(gen1:gen7, key = "gen_num", value = "genre") %>% 
+  filter(genre != "NA") %>% 
+  select(Title,genre, IMDb, Rotten.Tomatoes)
+nrow(df_imdb5)
+```
+```{r}
+df_imdb6 <- df_imdb5 %>% 
+  group_by(genre) %>% 
+  summarize(imdb = mean(IMDb, na.rm = TRUE),rotten = mean(Rotten.Tomatoes, na.rm = TRUE), count = n()) %>% 
+  mutate(rank = rank(desc(count), ties.method = "first")) %>% 
+  arrange(rank)
+```
+
+
+```{r, fig.width = 12, fig.height = 8}
+df_imdb6 %>% 
+  mutate(new_rank = rank(desc(imdb))) %>% 
+  filter(new_rank <= 10) %>% 
+  ggplot() +
+  geom_bar(aes(x = reorder(genre, -imdb), y = imdb), fill = "purple", stat = "identity") +
+  coord_cartesian(ylim = c(5, 9)) +
+  labs(x = "Genres", y = "IMDb ratings", title = "Top 10 Genres with the highest IMDb ratings") +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+  
+```
+
+
 
