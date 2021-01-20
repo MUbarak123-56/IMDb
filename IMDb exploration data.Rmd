@@ -1,0 +1,116 @@
+---
+title: "IMDb Data Analysis"
+output: pdf_document
+---
+
+# This document is designed to use data analysis to understand the movie ratings and how different service providers differ in the quality of movies on their platforms
+
+## Loading the Packages
+
+```{r, load-pkg}
+library(tidyverse)
+```
+
+### Loading the file
+```{r, load_file}
+df_imdb <- read.csv("~/IMDb/Movies.csv")
+```
+
+### Checking out the loaded file
+```{r}
+head(df_imdb,5)
+colnames(df_imdb)
+```
+
+### Refining the dataset
+```{r}
+df_imdb <- df_imdb %>% 
+  rename(c("Prime" = "Prime.Video", "Disney" = "Disney."))
+df_imdb$Rotten.Tomatoes <- str_replace_all(df_imdb$Rotten.Tomatoes, "%", "")
+df_imdb$Rotten.Tomatoes <- as.integer(df_imdb$Rotten.Tomatoes)
+sum(is.na(df_imdb$Rotten.Tomatoes))
+```
+
+### Rechecking dataframe
+```{r}
+head(df_imdb, 5)
+```
+
+### Creating new data frame for data exploration
+```{r}
+df_imdb1 <- df_imdb %>% 
+  select(Title, Year, IMDb, Rotten.Tomatoes, Netflix, Hulu, Prime, Disney) %>% 
+  gather(Netflix:Disney, key = "provider", value = "has_movie")
+```
+
+### Checking new dataframe
+```{r}
+head(df_imdb1,5)
+sprintf("Regular dataset has: %d", nrow(df_imdb))
+sprintf("Gathered dataset has: %d", nrow(df_imdb1))
+```
+
+### Understading the data better
+```{r}
+df_imdb1 <- df_imdb1 %>% 
+  filter(has_movie == 1)
+nrow(df_imdb1)
+write.csv(df_imdb1, "~/IMDb/Movies2.csv")
+```
+
+### Boxplot graph 
+
+```{r, fig.height = 8, fig.width = 12}
+
+df_imdb1 %>% 
+  ggplot() + geom_boxplot(aes(x = provider, y = IMDb), na.rm = TRUE) + 
+  labs(x = "provider", y = "IMDb ratings", title = "IMDb ratings across providers")
+
+```
+
+```{r, fig.height=8, fig.width = 12}
+df_imdb1 %>% 
+  ggplot() + 
+  geom_boxplot(aes(x = provider, y = Rotten.Tomatoes), na.rm = TRUE) + 
+  labs(x = "provider", y = "Rotten Tomatoes ratings") +
+  ggtitle("Rotten Tomatoes ratings across providers")
+```
+
+### Graph of IMDb vs Rotten Tomatoes
+
+```{r, fig.height = 8, fig.width=12}
+model <- lm(IMDb ~ Rotten.Tomatoes, data = df_imdb)
+coeff <- coef(model)
+ggplot(df_imdb) +
+  geom_point(aes(x = Rotten.Tomatoes, y = IMDb), color = "blue", na.rm = TRUE) +
+  geom_abline(intercept = coeff[1], slope = coeff[2], color = "red") +
+  theme_bw() + 
+  labs(y = "IMDb", x = "Rotten Tomatoes", title = "IMDb ratings vs Rotten Tomatoes Ratings")
+```
+
+```{r}
+df_imdb2 <- df_imdb %>% 
+  mutate(new_rotten = as.double(Rotten.Tomatoes/10)) %>% 
+  group_by(Year) %>% 
+  summarize(mean_IMDb = mean(IMDb, na.rm = TRUE), mean_rotten = mean(new_rotten, na.rm=TRUE))
+```
+
+```{r, fig.height = 8, fig.width=12}
+df_imdb2 %>% 
+  gather(mean_IMDb:mean_rotten, key = "raters", value = "ratings") %>% 
+  ggplot() + 
+  geom_line(aes(x = Year, y = ratings, color = raters)) +
+  labs(x = "year", y = "ratings", title = "How the movie ratings have differed over the years") +
+  theme_light()
+```
+
+```{r, fig.height = 8, fig.width = 12}
+ggplot(df_imdb2) +
+  geom_line(aes(x = Year, y = mean_IMDb, color = "IMDb")) +
+  geom_line(aes(x = Year, y = mean_rotten, color = "Rotten Tomatoes")) +
+  labs(x = "year", y = "ratings", title = "How the movie ratings have differed over the years") +
+  scale_colour_manual("", breaks = c("IMDb", "Rotten Tomatoes"), values = c("IMDb"="green", 
+                                                                            "Rotten Tomatoes"="red"))+
+  theme_bw()
+```
+
